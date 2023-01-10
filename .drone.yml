@@ -14,15 +14,20 @@ steps:
       /kaniko/executor --customPlatform=linux/amd64 --context=/drone/src --destination=$PLUGIN_IMAGE
 
 - name: deploy to cloud run
-  image: asia.gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine
-  pull: if-not-exists
-  commands:
-    - |
-      echo "$PLUGIN_SERVICE_ACCOUNT_JSON" | base64 -d  > /root/sa.json
-      export GOOGLE_APPLICATION_CREDENTIALS=/root/sa.json
-      gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
-      gcloud auth configure-docker "$REGISTRIES"
-      gcloud run deploy "$PLUGIN_SERVICE_NAME" --project "$PLUGIN_PROJECT" --region "$PLUGIN_REGION" --no-allow-unauthenticated --image $PLUGIN_IMAGE
+  image: docker.io/kameshsampath/drone-gcloud-run
+  pull: always
+
+# uncomment this, if need to configure more parameters for Cloud Run service
+# - name: deploy to cloud run
+#   image: asia.gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine
+#   pull: if-not-exists
+#   commands:
+#     - |
+#       echo "$PLUGIN_SERVICE_ACCOUNT_JSON" | base64 -d  > /root/sa.json
+#       export GOOGLE_APPLICATION_CREDENTIALS=/root/sa.json
+#       gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+#       gcloud auth configure-docker "$REGISTRIES"
+#       gcloud run deploy "$PLUGIN_SERVICE_NAME" --project "$PLUGIN_PROJECT" --region "$PLUGIN_REGION" --no-allow-unauthenticated --image $PLUGIN_IMAGE
 
 ---
 kind: pipeline

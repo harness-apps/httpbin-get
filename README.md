@@ -53,7 +53,6 @@ echo "PLUGIN_IMAGE=$(terraform output -raw repo_url)/httpbin-get"
 echo "PLUGIN_SERVICE_NAME=httpbin-get"
 echo "PLUGIN_REGION=$(terraform output -raw region)"
 echo "PLUGIN_PROJECT=$(terraform output -raw project_id)"
-echo "GOOGLE_APPLICATION_CREDENTIALS=/root/sa.json"
 echo "PLUGIN_SERVICE_ACCOUNT_JSON='$(terraform output -raw repo_sa_key)'"
 } >> .env
 ```
