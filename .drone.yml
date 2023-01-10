@@ -3,38 +3,12 @@ type: docker
 name: default
 
 steps:
-- name: download docker credential helpers
-  image: alpine
-  commands:
-    - |
-      apk add -U curl 
-      curl -fsSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v$${VERSION}/docker-credential-gcr_$${OS}_$${ARCH}-$${VERSION}.tar.gz" \
-      | tar xz docker-credential-gcr \
-      && chmod +x docker-credential-gcr && mv docker-credential-gcr /helpers
-  volumes:
-    - name: docker-cred-helpers
-      path: /helpers
-- name: hugo
-  image: klakegg/hugo
-  commands:
-    - hugo --cleanDestinationDir
 - name: build and push
-  image: docker:20.10-dind
+  image: gcr.io/kaniko-project/executor:v1.9.0-debug
   pull: if-not-exists
-  privileged: true
   commands:
     - |
-      echo -n "$PLUGIN_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
-      cp /helpers/docker-credential-gcr /usr/local/bin
-      docker-credential-gcr configure-docker -registries "$REGISTRIES"
-      dockerd --data-root /var/lib/docker --host=unix:///var/run/docker.sock &
-      docker build -t "$PLUGIN_IMAGE" .
-      docker push "$PLUGIN_IMAGE"
-  volumes:
-    - name: docker-cred-helpers
-      path: /helpers
-
-volumes:
-  - name: docker-cred-helpers
-    temp: {}
-    
+      echo "$PLUGIN_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+      /kaniko/executor --context=/drone/src --destination=$PLUGIN_IMAGE
+- name: deploy to cloud run
+  image: docker.io/kameshsampath/drone-gcloud-run

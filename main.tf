@@ -29,16 +29,6 @@ resource "google_service_account_key" "repo-account-key" {
   service_account_id = google_service_account.repo-account.name
 }
 
-resource "google_artifact_registry_repository_iam_member" "repo-iam" {
-  provider = google-beta
-
-  for_each   = toset(var.repo_sa_roles)
-  location   = google_artifact_registry_repository.my-docker-repo.location
-  repository = google_artifact_registry_repository.my-docker-repo.name
-  member     = google_service_account.repo-account.member
-  role       = each.key
-}
-
 resource "google_project_iam_binding" "repo-iam-binding" {
   for_each = toset(var.repo_sa_roles)
   project  = var.project_id
