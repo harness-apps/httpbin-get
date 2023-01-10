@@ -6,9 +6,50 @@ steps:
 - name: build and push
   image: gcr.io/kaniko-project/executor:v1.9.0-debug
   pull: if-not-exists
+  environment:
+    GOOGLE_APPLICATION_CREDENTIALS: /kaniko/sa.json
   commands:
     - |
-      echo "$PLUGIN_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
-      /kaniko/executor --context=/drone/src --destination=$PLUGIN_IMAGE
+      echo "$PLUGIN_SERVICE_ACCOUNT_JSON" | base64 -d  > "$GOOGLE_APPLICATION_CREDENTIALS"
+      /kaniko/executor --customPlatform=linux/amd64 --context=/drone/src --destination=$PLUGIN_IMAGE
+
 - name: deploy to cloud run
-  image: docker.io/kameshsampath/drone-gcloud-run
+  image: asia.gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine
+  pull: if-not-exists
+  commands:
+    - |
+      echo "$PLUGIN_SERVICE_ACCOUNT_JSON" | base64 -d  > /root/sa.json
+      export GOOGLE_APPLICATION_CREDENTIALS=/root/sa.json
+      gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+      gcloud auth configure-docker "$REGISTRIES"
+      gcloud run deploy "$PLUGIN_SERVICE_NAME" --project "$PLUGIN_PROJECT" --region "$PLUGIN_REGION" --no-allow-unauthenticated --image $PLUGIN_IMAGE
+
+---
+kind: pipeline
+type: docker
+name: invoke
+steps:
+- name: invoke service
+  image: asia.gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine
+  pull: if-not-exists
+  commands:
+    - |
+      echo "$PLUGIN_SERVICE_ACCOUNT_JSON" | base64 -d  > /root/sa.json
+      export GOOGLE_APPLICATION_CREDENTIALS=/root/sa.json
+      gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+      export SERVICE_URL=$(gcloud run services list --project="$PLUGIN_PROJECT" --region="$PLUGIN_REGION" --filter="SERVICE:$PLUGIN_SERVICE_NAME" --format="table[no-heading](URL)")
+      alias gcurl='curl -s --header "Authorization: Bearer $(gcloud auth print-identity-token)"'
+      gcurl $SERVICE_URL
+---
+kind: pipeline
+type: docker
+name: cleanup
+steps:
+- name: delete resources
+  image: asia.gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine
+  commands:
+    - |
+      echo "$PLUGIN_SERVICE_ACCOUNT_JSON" | base64 -d  > /root/sa.json
+      export GOOGLE_APPLICATION_CREDENTIALS=/root/sa.json
+      gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+      gcloud run services delete --quiet --project="$PLUGIN_PROJECT" --region="$PLUGIN_REGION" "$PLUGIN_SERVICE_NAME"

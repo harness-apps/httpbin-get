@@ -25,7 +25,7 @@ The repository has [terraform](https://terraform.io) scripts that allows you to 
 The `terraform apply` will,
 
 - [x] Create a Google Artifact Registry repository called `harness-tutorial`
-- [x] Create a Google Service Account called `harness-tutorial-sa` with permissions to 
+- [x] Create a Google Service Account called `harness-tutorial-sa` with permissions to
   - [x] Administer the `harness-tutorial` repository
   - [x] Deploy services to Google Cloud Run
 
@@ -49,12 +49,12 @@ Set some environment variables to be used with the drone pipeline,
 echo -n "" > .env
 {
 echo "REGISTRIES=$(terraform output -raw artifact_registry)"
-echo "PLUGIN_IMAGE=$(terraform output -raw repo_url)/my-blogs"
-echo "PLUGIN_SERVICE_NAME=my-blogs"
+echo "PLUGIN_IMAGE=$(terraform output -raw repo_url)/httpbin-get"
+echo "PLUGIN_SERVICE_NAME=httpbin-get"
 echo "PLUGIN_REGION=$(terraform output -raw region)"
 echo "PLUGIN_PROJECT=$(terraform output -raw project_id)"
 echo "GOOGLE_APPLICATION_CREDENTIALS=/root/sa.json"
-echo "PLUGIN_SERVICE_ACCOUNT_JSON='$(terraform output -raw repo_sa_key | base64 -D | jq -r -c )'"
+echo "PLUGIN_SERVICE_ACCOUNT_JSON='$(terraform output -raw repo_sa_key)'"
 } >> .env
 ```
 
@@ -66,14 +66,43 @@ Let us run the drone pipeline locally to test the infra is setup correctly
 drone exec --env-file=.env --trusted
 ```
 
+Invoke the service
+
+```shell
+drone exec --env-file=.env --pipeline='invoke'
+```
+
+The command should shown an output like
+
+```json
+{
+  "args": {}, 
+  "headers": {
+    "Accept-Encoding": "gzip, deflate, br", 
+    "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8", 
+    "Host": "httpbin.org", 
+    "Referer": "https://httpbin.org/", 
+    "User-Agent": "go-resty/2.7.0 (https://github.com/go-resty/resty)", 
+    "X-Amzn-Trace-Id": "Root=1-63bd82a6-48984f670886c5f55890feea", 
+    "X-My-Header": "harness-tutorial-demo"
+  }, 
+  "origin": "<some ip>", 
+  "url": "https://httpbin.org/get"
+}
+```
+
 ## Cleanup
 
 The following command will destroy all resources that has have been created on Google Cloud.
 
+Destroy the google cloud run service,
+
 ```shell
-cd $TUTORIAL_HOME
-make destroy
+drone exec --env-file=.env --pipeline=cleanup
 ```
 
-> __NOTE__: The terraform can delete the Cloud Run service, please delete via Google Cloud Console or gcloud cli
-> 
+Delete all Google Cloud infrastructure resources,
+
+```shell
+make destroy
+```
