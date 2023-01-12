@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-kind
+  namespace: harness-delegate-ng
+spec:
+  template:
+    spec:
+      volumes:
+        - name: harness-tutorial-credentials
+          secret:
+            secretName: harness-tutorial-credentials
+      containers:
+        - name: delegate
+          env:
+            - name: INIT_SCRIPT
+              value: |
+                microdnf install gzip unzip python3
+                curl -sSL "$GCLOUD_CLI_ARTIFACT" | tar zx
+                ./google-cloud-sdk/install.sh
+                ./google-cloud-sdk/bin/gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+                curl -sSL -o terraform.zip "$TERRAFORM_CLI_ARTIFACT"
+                unzip terraform.zip
+                mv ./terraform /usr/bin/
+                # Check TF install
+                terraform --version
+          volumeMounts:
+            - name: harness-tutorial-credentials
+              mountPath: /harness-tutorial
+              readOnly: true
